@@ -1,0 +1,148 @@
+#!/bin/bash
+
+# WARNING: DO NOT EDIT, THIS FILE IS PROBABLY A COPY
+#
+# The original version of this file is located in the https://github.com/maistra/rpm-common repo.
+# If you're looking at this file in a different repo and want to make a change, please go to the
+# rpm-common repo, make the change there and check it in. Then come back to this repo and run
+# "make update-common".
+
+# Copyright (C) 2020 Red Hat, Inc. All rights reserved.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#    http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# We need: copr, git, fedpkg
+
+set -e
+set -o pipefail
+set -u
+
+if [ "${VERBOSE:-}" == "1" ]; then
+  set -x
+fi
+
+SCRIPTPATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+
+# shellcheck disable=SC1090
+source "${SCRIPTPATH}/utils.sh"
+
+START_TIME=${SECONDS}
+COPR_REPO="${COPR_REPO:-jwendell/istio}"
+COPR_CONFIG="${COPR_CONFIG:-${HOME}/.config/copr}"
+COPR_COMMAND="${COPR_COMMAND:-copr --config ${COPR_CONFIG}}"
+
+# Max waiting time for the build to complete, in seconds
+TIME_WAIT=${TIME_WAIT:-1200}
+
+# If set will enable the dev mode, which does things like using the git SHA in the version field
+DEV_MODE=${DEV_MODE:-}
+
+function error() {
+  [ $# -gt 0 ] && echo "$@"
+  exit 1
+}
+
+function patch_spec() {
+  [ -z "${DEV_MODE}" ] && return
+
+  local release
+  release="$(date +%Y%m%d).%{git_shortcommit}%{?dist}"
+
+  echo "DEV_MODE set, patching the .spec Release field to: ${release}"
+  sed -i "s/^Release:.*/Release: ${release}/" ior.spec
+}
+
+function generate_srpm() {
+  fedpkg --release el8 srpm
+}
+
+function invoke_copr_build() {
+  local re='^[0-9]+$'
+  local build_id
+
+  build_id=$(${COPR_COMMAND} build --nowait "${COPR_REPO}" ./*.src.rpm | grep 'Created builds:' | awk '{print $3}')
+  if [[ ! ${build_id} =~ ${re} ]]; then
+    error "Error invoking copr to build the package"
+  fi
+
+  BUILD_ID="${build_id}"
+}
+
+function build_package() {
+  echo "Building ${REPO} on COPR"
+
+  patch_spec
+  generate_srpm
+  invoke_copr_build
+}
+
+function wait_for_build_to_finish() {
+  local computed_time
+  local start_time=${SECONDS}
+  local result
+  local build_url="https://copr.fedorainfracloud.org/coprs/build/${BUILD_ID}/"
+
+  SECONDS=0
+  echo
+  echo "Waiting for COPR build to finish (max wait time: ${TIME_WAIT}s)"
+
+  # Give it a little time as it's unlikely the build will finish before this
+  sleep 30
+
+  while true; do
+    result=$(${COPR_COMMAND} status "${BUILD_ID}")
+    case ${result} in
+      succeeded)
+        echo "Build ${build_url} succeeded"
+        break
+        ;;
+
+      pending | importing | running)
+        ;;
+
+      *)
+        echo "Build ${build_url} failed"
+        break
+        ;;
+    esac
+
+    computed_time=$(( SECONDS - start_time ))
+    if [ ${computed_time} -ge "${TIME_WAIT}" ]; then
+      echo "Time out, giving out on build ${build_url}"
+      break
+    fi
+
+    sleep 10
+  done
+
+  if [ "${result}" != "succeeded" ]; then
+    error
+  fi
+}
+
+function main() {
+  REPO=${REPO:-"$(guess_repo_name)"}
+  if [ -z "${REPO}" ]; then
+    echo "Unknown repository. Please set the REPO variable."
+    exit 1
+  fi
+
+  build_package
+  wait_for_build_to_finish
+
+  echo
+  echo "Elapsed time: $(( SECONDS - START_TIME ))s"
+  echo
+}
+
+main
