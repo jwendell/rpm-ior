@@ -27,7 +27,7 @@ ExclusiveArch:  %{?go_arches:%{go_arches}}%{!?go_arches:%{ix86} x86_64 aarch64 %
 BuildRequires:  golang >= 1.9
 
 %description
-ior integrates Istio Gateways with OpenShift Routes
+ior integrates Istio Gateways with OpenShift Routes :)
 
 %prep
 rm -rf IOR
