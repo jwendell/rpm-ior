@@ -1,7 +1,5 @@
 %undefine _missing_build_ids_terminate_build
 
-# XUXA
-
 %global git_commit 67fd95659451a003898cb42ebe79acd4d1c56a17
 %global git_shortcommit  %(c=%{git_commit}; echo ${c:0:7})
 
