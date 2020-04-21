@@ -37,7 +37,7 @@ SCRIPTPATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${SCRIPTPATH}/utils.sh"
 
 START_TIME=${SECONDS}
-COPR_REPO="${COPR_REPO:-maistra-dev/istio}"
+COPR_REPO="${COPR_REPO:-@maistra-dev/istio}"
 COPR_CONFIG="${COPR_CONFIG:-${HOME}/.config/copr}"
 COPR_COMMAND="${COPR_COMMAND:-copr --config ${COPR_CONFIG}}"
 
