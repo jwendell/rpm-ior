@@ -29,3 +29,8 @@ function guess_repo_name() {
     echo "${dir_name#rpm-}"
   fi
 }
+
+function error() {
+  [ $# -gt 0 ] && echo "$@"
+  exit 1
+}

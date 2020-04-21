@@ -37,7 +37,7 @@ SCRIPTPATH="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 source "${SCRIPTPATH}/utils.sh"
 
 START_TIME=${SECONDS}
-COPR_REPO="${COPR_REPO:-jwendell/istio}"
+COPR_REPO="${COPR_REPO:-maistra-dev/istio}"
 COPR_CONFIG="${COPR_CONFIG:-${HOME}/.config/copr}"
 COPR_COMMAND="${COPR_COMMAND:-copr --config ${COPR_CONFIG}}"
 
@@ -47,16 +47,11 @@ TIME_WAIT=${TIME_WAIT:-1200}
 # If set will enable the dev mode, which does things like using the git SHA in the version field
 DEV_MODE=${DEV_MODE:-}
 
-function error() {
-  [ $# -gt 0 ] && echo "$@"
-  exit 1
-}
-
 function patch_spec() {
   [ -z "${DEV_MODE}" ] && return
 
   local release
-  release="$(date +%Y%m%d).%{git_shortcommit}%{?dist}"
+  release="%{git_shortcommit}%{?dist}"
 
   echo "DEV_MODE set, patching the .spec Release field to: ${release}"
   sed -i "s/^Release:.*/Release: ${release}/" ior.spec
