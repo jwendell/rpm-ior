@@ -1,6 +1,9 @@
 TMP := $(shell mktemp -d -u)
 UPDATE_BRANCH ?= "maistra-1.2"
 
+xuxa:
+	echo xuxa
+
 update-common:
 	@mkdir -p $(TMP)
 	@git clone -q --depth 1 --single-branch --branch $(UPDATE_BRANCH) https://github.com/jwendell/rpm-common $(TMP)/rpm-common
